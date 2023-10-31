@@ -1,0 +1,40 @@
+name: PaperCardTpa
+version: '${project.version}'
+main: cn.paper_card.paper_card_tpa.PaperCardTpa
+api-version: '1.20'
+
+author: Paper99
+folia-supported: true
+
+commands:
+  tpa:
+    permission: paper-card-tpa.command.tpa
+    description: 向一个玩家传送请求
+
+  tpaaccept:
+    permission: paper-card-tpa.command.tpa-accept
+    description: 同意传送请求
+
+  tpadeny:
+    permission: paper-card-tpa.command.tpa-deny
+    description: 拒绝传送请求
+
+  tpacancel:
+    permission: paper-card-tpa.command.tpa-cancel
+    description: 取消传送请求
+
+permissions:
+  paper-card-tpa.command.tpa:
+    default: true
+
+  paper-card-tpa.command.tpa-accept:
+    default: true
+
+  paper-card-tpa.command.tpa-deny:
+    default: true
+
+  paper-card-tpa.command.tpa-cancel:
+    default: true
+
+
+
