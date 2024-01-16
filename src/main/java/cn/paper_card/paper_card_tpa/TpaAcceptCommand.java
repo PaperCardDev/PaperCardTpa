@@ -86,7 +86,7 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
         }
 
         // 消耗末影珍珠
-        if (!plugin.consumeEnderPearl(srcPlayer)) {
+        if (!plugin.consumeEnderPearl(srcPlayer, plugin.getConfigManager().getNeedEnderPearl())) {
             plugin.sendError(srcPlayer, "末影珍珠不足，一次传送至少需要4颗");
             plugin.sendError(destPlayer, "对方没有足够的末影珍珠进行传送");
             return true;

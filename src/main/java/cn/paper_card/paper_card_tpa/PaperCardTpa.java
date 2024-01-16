@@ -23,6 +23,8 @@ public final class PaperCardTpa extends JavaPlugin {
 
     private final @NotNull TextComponent prefix;
 
+    private final @NotNull ConfigManager configManager;
+
     public PaperCardTpa() {
         this.lastTp = new HashMap<>();
         this.requestContainer = new RequestContainer();
@@ -31,6 +33,8 @@ public final class PaperCardTpa extends JavaPlugin {
                 .append(Component.text("TPA传送").color(NamedTextColor.GOLD))
                 .append(Component.text("]").color(NamedTextColor.LIGHT_PURPLE))
                 .build();
+
+        this.configManager = new ConfigManager(this);
     }
 
     @Nullable Long getPlayerLastTp(@NotNull Player player) {
@@ -54,7 +58,7 @@ public final class PaperCardTpa extends JavaPlugin {
 
         final long currentTimeMillis = System.currentTimeMillis();
 
-        final long cdEnd = playerLastTp + 10 * 60 * 1000L;
+        final long cdEnd = playerLastTp + this.configManager.getCoolDown();
 
         return cdEnd - currentTimeMillis;
     }
@@ -64,7 +68,10 @@ public final class PaperCardTpa extends JavaPlugin {
     }
 
     // 检查玩家的背包是否有足够的末影珍珠来进行传送，有返回true
-    boolean checkEnderPearl(@NotNull Player player) {
+    boolean checkEnderPearl(@NotNull Player player, int need) {
+
+        if (need <= 0) return true;
+
         final PlayerInventory inventory = player.getInventory();
 
         int c = 0;
@@ -84,19 +91,21 @@ public final class PaperCardTpa extends JavaPlugin {
 
             c += amount;
 
-            if (c >= 4) return true;
+            if (c >= need) return true;
         }
 
         return false;
     }
 
     // 消耗玩家的末影珍珠，消耗成功返回true
-    boolean consumeEnderPearl(@NotNull Player player) {
+    boolean consumeEnderPearl(@NotNull Player player, int need) {
+
+        if (need <= 0) return true;
+
         final PlayerInventory inventory = player.getInventory();
 
         int i = 4 * 9;
 
-        final int need = 4;
         int c = need; // 表示还差几个末影珍珠
 
         while (--i >= 0) { // 遍历背包
@@ -190,6 +199,11 @@ public final class PaperCardTpa extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        this.saveConfig();
+    }
+
+    @NotNull ConfigManager getConfigManager() {
+        return this.configManager;
     }
 
     void sendInfo(@NotNull CommandSender sender, @NotNull TextComponent message) {

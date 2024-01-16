@@ -69,7 +69,7 @@ class TpaCommand implements CommandExecutor, TabCompleter {
         }
 
         // 检查末影珍珠
-        if (!plugin.checkEnderPearl(player)) {
+        if (!plugin.checkEnderPearl(player, plugin.getConfigManager().getNeedEnderPearl())) {
             plugin.sendInfo(commandSender, Component.text()
                     .append(Component.text("你的背包里没有足够的").color(NamedTextColor.YELLOW))
                     .append(Component.text("末影珍珠").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD))
