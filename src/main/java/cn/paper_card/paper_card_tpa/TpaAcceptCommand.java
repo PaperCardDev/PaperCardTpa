@@ -85,18 +85,51 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 消耗末影珍珠
-        if (!plugin.consumeEnderPearl(srcPlayer, plugin.getConfigManager().getNeedEnderPearl())) {
-            plugin.sendError(srcPlayer, "末影珍珠不足，一次传送至少需要4颗");
-            plugin.sendError(destPlayer, "对方没有足够的末影珍珠进行传送");
-            return true;
-        }
+        plugin.getTaskScheduler().runTaskAsynchronously(() -> {
+
+            // 消耗硬币
+            try {
+                if (!plugin.getUseCoins().consumeCoins(srcPlayer)) return;
+            } catch (Exception e) {
+                plugin.sendException(srcPlayer, e);
+                plugin.getSLF4JLogger().error("", e);
+                return;
+            }
+
+            final Consumer<ScheduledTask> task = getScheduledTaskConsumer(destPlayer, srcPlayer);
 
 
+            srcPlayer.getScheduler().runAtFixedRate(plugin, task, null, 20, 20);
+
+            // 通知
+            srcPlayer.sendActionBar(Component.text()
+                    .append(destPlayer.displayName())
+                    .appendSpace()
+                    .append(Component.text("已同意你的传送请求，即将传送...")).color(NamedTextColor.GREEN)
+                    .build());
+
+            // 让被玩家不要动
+            srcPlayer.sendTitlePart(TitlePart.TITLE, Component.text("准备传送").color(NamedTextColor.GOLD));
+            srcPlayer.sendTitlePart(TitlePart.SUBTITLE, Component.text("不要动！").color(NamedTextColor.RED));
+
+            destPlayer.sendActionBar(Component.text()
+                    .append(Component.text("准备将 ").color(NamedTextColor.GREEN))
+                    .append(srcPlayer.displayName())
+                    .append(Component.text(" 传送到你这儿~").color(NamedTextColor.GREEN))
+                    .build());
+        });
+
+        return true;
+    }
+
+    @NotNull
+    private Consumer<ScheduledTask> getScheduledTaskConsumer(Player destPlayer, Player srcPlayer) {
         final AtomicInteger integer = new AtomicInteger(60);
-        final Consumer<ScheduledTask> task = (t) -> {
+
+        return (t) -> {
             final int i = integer.get();
             if (i <= 0) {
+                // 真正的传送
                 srcPlayer.teleportAsync(destPlayer.getLocation());
                 plugin.setPlayerLastTp(srcPlayer, System.currentTimeMillis());
                 plugin.sendInfo(srcPlayer, Component.text("已传送").color(NamedTextColor.GREEN));
@@ -110,27 +143,6 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
                     .append(Component.text("秒后传送...").color(NamedTextColor.GREEN))
                     .build());
         };
-
-        // 真正的传送
-        srcPlayer.getScheduler().runAtFixedRate(plugin, task, null, 20, 20);
-
-        srcPlayer.sendActionBar(Component.text()
-                .append(destPlayer.displayName())
-                .appendSpace()
-                .append(Component.text("已同意你的传送请求，即将传送...")).color(NamedTextColor.GREEN)
-                .build());
-
-        // 让被玩家不要动
-        srcPlayer.sendTitlePart(TitlePart.TITLE, Component.text("准备传送").color(NamedTextColor.GOLD));
-        srcPlayer.sendTitlePart(TitlePart.SUBTITLE, Component.text("不要动！").color(NamedTextColor.RED));
-
-        destPlayer.sendActionBar(Component.text()
-                .append(Component.text("准备将 ").color(NamedTextColor.GREEN))
-                .append(srcPlayer.displayName())
-                .append(Component.text(" 传送到你这儿~").color(NamedTextColor.GREEN))
-                .build());
-
-        return true;
     }
 
     @Override

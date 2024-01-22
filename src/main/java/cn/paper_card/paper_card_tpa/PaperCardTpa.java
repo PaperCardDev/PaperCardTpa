@@ -1,14 +1,14 @@
 package cn.paper_card.paper_card_tpa;
 
+import cn.paper_card.player_coins.api.PlayerCoinsApi;
+import com.github.Anon8281.universalScheduler.UniversalScheduler;
+import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskScheduler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -21,20 +21,28 @@ public final class PaperCardTpa extends JavaPlugin {
     private final @NotNull HashMap<UUID, Long> lastTp; // 玩家上次传送的时间
     private final @NotNull RequestContainer requestContainer;
 
-    private final @NotNull TextComponent prefix;
-
     private final @NotNull ConfigManager configManager;
+
+    private final @NotNull TaskScheduler taskScheduler;
+
+    private final @NotNull UseCoins useCoins;
+
+    private PlayerCoinsApi playerCoinsApi = null;
 
     public PaperCardTpa() {
         this.lastTp = new HashMap<>();
         this.requestContainer = new RequestContainer();
-        this.prefix = Component.text()
-                .append(Component.text("[").color(NamedTextColor.LIGHT_PURPLE))
-                .append(Component.text("TPA传送").color(NamedTextColor.GOLD))
-                .append(Component.text("]").color(NamedTextColor.LIGHT_PURPLE))
-                .build();
 
         this.configManager = new ConfigManager(this);
+        this.taskScheduler = UniversalScheduler.getScheduler(this);
+
+        this.useCoins = new UseCoins(this);
+    }
+
+    void appendPrefix(@NotNull TextComponent.Builder text) {
+        text.append(Component.text("[").color(NamedTextColor.LIGHT_PURPLE));
+        text.append(Component.text("TPA传送").color(NamedTextColor.GOLD));
+        text.append(Component.text("]").color(NamedTextColor.LIGHT_PURPLE));
     }
 
     @Nullable Long getPlayerLastTp(@NotNull Player player) {
@@ -67,86 +75,6 @@ public final class PaperCardTpa extends JavaPlugin {
         return this.requestContainer;
     }
 
-    // 检查玩家的背包是否有足够的末影珍珠来进行传送，有返回true
-    boolean checkEnderPearl(@NotNull Player player, int need) {
-
-        if (need <= 0) return true;
-
-        final PlayerInventory inventory = player.getInventory();
-
-        int c = 0;
-
-        int i = 4 * 9;
-        while (--i >= 0) {
-            final ItemStack item = inventory.getItem(i);
-
-            // 空格子
-            if (item == null) continue;
-
-            // 不是末影珍珠
-            final Material type = item.getType();
-            if (!type.equals(Material.ENDER_PEARL)) continue;
-
-            final int amount = item.getAmount();
-
-            c += amount;
-
-            if (c >= need) return true;
-        }
-
-        return false;
-    }
-
-    // 消耗玩家的末影珍珠，消耗成功返回true
-    boolean consumeEnderPearl(@NotNull Player player, int need) {
-
-        if (need <= 0) return true;
-
-        final PlayerInventory inventory = player.getInventory();
-
-        int i = 4 * 9;
-
-        int c = need; // 表示还差几个末影珍珠
-
-        while (--i >= 0) { // 遍历背包
-            final ItemStack item = inventory.getItem(i);
-
-            // 空格子
-            if (item == null) continue;
-
-            // 不是末影珍珠
-            final Material type = item.getType();
-            if (!type.equals(Material.ENDER_PEARL)) continue;
-
-            final int amount = item.getAmount();
-
-            int amountNew = amount - c;
-
-            if (amountNew < 0) {
-                inventory.setItem(i, null);
-                c -= amount;
-            } else {
-                item.setAmount(amountNew);
-                inventory.setItem(i, item);
-                return true;
-            }
-        }
-
-        // 如果没有足够的末影珍珠，归还移出的末影珍珠到背包
-        final int back = need - c;
-        i = 4 * 9;
-        while (--i >= 0) {
-            final ItemStack item = inventory.getItem(i);
-            if (item != null) continue;
-
-            final ItemStack itemStack = new ItemStack(Material.ENDER_PEARL);
-            itemStack.setAmount(back);
-            inventory.setItem(i, itemStack);
-            break;
-        }
-
-        return false;
-    }
 
     static @NotNull String formatTime(long ms) {
         ms /= 1000;
@@ -171,6 +99,8 @@ public final class PaperCardTpa extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        this.playerCoinsApi = this.getServer().getServicesManager().load(PlayerCoinsApi.class);
+
         final PluginCommand tpaCmd = this.getCommand("tpa");
         final TpaCommand tpaCommand = new TpaCommand(this);
         assert tpaCmd != null;
@@ -195,36 +125,70 @@ public final class PaperCardTpa extends JavaPlugin {
         tpaCancelCmd.setExecutor(tpaCancelCommand);
         tpaCancelCmd.setTabCompleter(tpaCancelCommand);
 
+        this.configManager.setDefaults();
+        this.configManager.save();
     }
 
     @Override
     public void onDisable() {
-        this.saveConfig();
+        this.configManager.save();
+    }
+
+    @NotNull PlayerCoinsApi getPlayerCoinsApi() {
+        return this.playerCoinsApi;
     }
 
     @NotNull ConfigManager getConfigManager() {
         return this.configManager;
     }
 
+    @NotNull TaskScheduler getTaskScheduler() {
+        return this.taskScheduler;
+    }
+
+    @NotNull UseCoins getUseCoins() {
+        return this.useCoins;
+    }
+
     void sendInfo(@NotNull CommandSender sender, @NotNull TextComponent message) {
-        sender.sendMessage(Component.text()
-                .append(this.prefix)
+        final TextComponent.Builder text = Component.text();
+        this.appendPrefix(text);
+
+        sender.sendMessage(text
                 .appendSpace()
                 .append(message)
                 .build());
     }
 
     void sendError(@NotNull CommandSender sender, @NotNull String error) {
-        sender.sendMessage(Component.text()
-                .append(this.prefix)
+        final TextComponent.Builder text = Component.text();
+        this.appendPrefix(text);
+
+        sender.sendMessage(text
                 .appendSpace()
                 .append(Component.text(error).color(NamedTextColor.RED))
                 .build());
     }
 
+    void sendException(@NotNull CommandSender sender, @NotNull Throwable e) {
+        final TextComponent.Builder text = Component.text();
+        this.appendPrefix(text);
+        text.appendSpace();
+        text.append(Component.text("==== 异常信息 ====").color(NamedTextColor.DARK_RED));
+
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            text.appendNewline();
+            text.append(Component.text(t.toString()).color(NamedTextColor.RED));
+        }
+
+        sender.sendMessage(text.build());
+    }
+
     void sendWaring(@NotNull CommandSender sender, @NotNull String warning) {
-        sender.sendMessage(Component.text()
-                .append(this.prefix)
+        final TextComponent.Builder text = Component.text();
+        this.appendPrefix(text);
+
+        sender.sendMessage(text
                 .appendSpace()
                 .append(Component.text(warning).color(NamedTextColor.YELLOW))
                 .build());

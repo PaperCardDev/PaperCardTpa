@@ -68,98 +68,97 @@ class TpaCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 检查末影珍珠
-        if (!plugin.checkEnderPearl(player, plugin.getConfigManager().getNeedEnderPearl())) {
-            plugin.sendInfo(commandSender, Component.text()
-                    .append(Component.text("你的背包里没有足够的").color(NamedTextColor.YELLOW))
-                    .append(Component.text("末影珍珠").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD))
-                    .append(Component.text("来传送噢，").color(NamedTextColor.YELLOW))
-                    .append(Component.text("一次传送需要").color(NamedTextColor.YELLOW))
-                    .append(Component.text(4).color(NamedTextColor.RED).decorate(TextDecoration.BOLD))
-                    .append(Component.text("个").color(NamedTextColor.YELLOW))
-                    .build());
-            return true;
-        }
+        plugin.getTaskScheduler().runTaskAsynchronously(() -> {
 
-        // 检查是否重复请求
-        final TpRequest request = plugin.getRequestContainer().removeBySrcPlayer(player);
-        if (request != null) {
-            final long currentTimeMillis = System.currentTimeMillis();
-
-            // 请求已经过期
-            if (currentTimeMillis > request.createTime() + 2 * 60 * 1000L) {
-                plugin.getLogger().info("已自动取消超时的传送请求");
-            } else {
-                final Player destPlayer = request.destPlayer();
-                plugin.sendInfo(commandSender, Component.text()
-                        .append(Component.text("你已经向 ").color(NamedTextColor.YELLOW))
-                        .append(destPlayer.displayName())
-                        .append(Component.text(" 发起了一个传送请求，不能再发起新的传送请求，请先取消原请求再重新发起噢").color(NamedTextColor.YELLOW))
-                        .appendSpace()
-                        .append(Component.text("[点击取消]")
-                                .color(NamedTextColor.GRAY).decorate(TextDecoration.UNDERLINED)
-                                .clickEvent(ClickEvent.runCommand("/tpacancel"))
-                                .hoverEvent(HoverEvent.showText(Component.text("点击执行/tpacancel")))
-                        )
-                        .build());
-
-                plugin.getRequestContainer().add(request); // 放回
-                return true;
+            // 检查硬币是否足够
+            try {
+                if (!plugin.getUseCoins().checkCoins(player)) return;
+            } catch (Exception e) {
+                plugin.getSLF4JLogger().error("", e);
+                plugin.sendException(commandSender, e);
+                return;
             }
-        }
 
-        // 创建传送请求
-        final boolean added = plugin.getRequestContainer().add(new TpRequest(player, targetPlayer, System.currentTimeMillis()));
+            // 检查是否重复请求
+            final TpRequest request = plugin.getRequestContainer().removeBySrcPlayer(player);
+            if (request != null) {
+                final long currentTimeMillis = System.currentTimeMillis();
 
-        if (!added) {
-            plugin.sendError(commandSender, "当前传送系统繁忙，请稍后重试");
-            return true;
-        }
+                // 请求已经过期
+                if (currentTimeMillis > request.createTime() + 2 * 60 * 1000L) {
+                    plugin.getLogger().info("已自动取消超时的传送请求");
+                } else {
+                    final Player destPlayer = request.destPlayer();
+                    plugin.sendInfo(commandSender, Component.text()
+                            .append(Component.text("你已经向 ").color(NamedTextColor.YELLOW))
+                            .append(destPlayer.displayName())
+                            .append(Component.text(" 发起了一个传送请求，不能再发起新的传送请求，请先取消原请求再重新发起噢").color(NamedTextColor.YELLOW))
+                            .appendSpace()
+                            .append(Component.text("[点击取消]")
+                                    .color(NamedTextColor.GRAY).decorate(TextDecoration.UNDERLINED)
+                                    .clickEvent(ClickEvent.runCommand("/tpacancel"))
+                                    .hoverEvent(HoverEvent.showText(Component.text("点击执行/tpacancel")))
+                            )
+                            .build());
 
-        //
-        final TextComponent build = Component.text()
-                .append(Component.text("你向 ").color(NamedTextColor.GREEN))
-                .append(targetPlayer.displayName())
-                .append(Component.text(" 发起了传送请求，请等待对方响应").color(NamedTextColor.GREEN))
-                .appendSpace()
-                .append(Component.text("[点击取消]")
-                        .color(NamedTextColor.GRAY).decorate(TextDecoration.UNDERLINED)
-                        .hoverEvent(HoverEvent.showText(Component.text("点击执行/tpacancel")))
-                        .clickEvent(ClickEvent.runCommand("/tpacancel")
-                        ))
-                .build();
+                    plugin.getRequestContainer().add(request); // 放回
+                    return;
+                }
+            }
 
-        plugin.sendInfo(commandSender, build);
+            // 创建传送请求
+            final boolean added = plugin.getRequestContainer().add(new TpRequest(player, targetPlayer, System.currentTimeMillis()));
 
-        // 通知被传送方
-        targetPlayer.sendActionBar(Component.text()
-                .append(Component.text("来自 ").color(NamedTextColor.GREEN))
-                .append(player.displayName())
-                .append(Component.text(" 的传送请求").color(NamedTextColor.GREEN))
-                .build());
+            if (!added) {
+                plugin.sendError(commandSender, "当前传送系统繁忙，请稍后重试");
+                return;
+            }
 
-        final String acceptCmd = "/tpaaccept " + player.getName();
-        final String rejectCmd = "/tpadeny " + player.getName();
+            //
+            final TextComponent build = Component.text()
+                    .append(Component.text("你向 ").color(NamedTextColor.GREEN))
+                    .append(targetPlayer.displayName())
+                    .append(Component.text(" 发起了传送请求，请等待对方响应").color(NamedTextColor.GREEN))
+                    .appendSpace()
+                    .append(Component.text("[点击取消]")
+                            .color(NamedTextColor.GRAY).decorate(TextDecoration.UNDERLINED)
+                            .hoverEvent(HoverEvent.showText(Component.text("点击执行/tpacancel")))
+                            .clickEvent(ClickEvent.runCommand("/tpacancel")
+                            ))
+                    .build();
 
-        final TextComponent build1 = Component.text()
-                .append(Component.text("你收到了来自 ").color(NamedTextColor.GREEN))
-                .append(player.displayName())
-                .append(Component.text(" 的传送请求").color(NamedTextColor.GREEN))
-                .append(Component.newline())
-                .append(Component.text("[点击同意]")
-                        .color(NamedTextColor.AQUA).decorate(TextDecoration.UNDERLINED)
-                        .hoverEvent(HoverEvent.showText(Component.text("点击执行: %s".formatted(acceptCmd))))
-                        .clickEvent(ClickEvent.runCommand(acceptCmd))
-                )
-                .appendSpace()
-                .append(Component.text("[点击拒绝]")
-                        .color(NamedTextColor.RED).decorate(TextDecoration.UNDERLINED)
-                        .hoverEvent(HoverEvent.showText(Component.text("点击执行: %s".formatted(rejectCmd))))
-                        .clickEvent(ClickEvent.runCommand(rejectCmd))
-                )
-                .build();
+            plugin.sendInfo(commandSender, build);
 
-        plugin.sendInfo(targetPlayer, build1);
+            // 通知被传送方
+            targetPlayer.sendActionBar(Component.text()
+                    .append(Component.text("来自 ").color(NamedTextColor.GREEN))
+                    .append(player.displayName())
+                    .append(Component.text(" 的传送请求").color(NamedTextColor.GREEN))
+                    .build());
+
+            final String acceptCmd = "/tpaaccept " + player.getName();
+            final String rejectCmd = "/tpadeny " + player.getName();
+
+            final TextComponent build1 = Component.text()
+                    .append(Component.text("你收到了来自 ").color(NamedTextColor.GREEN))
+                    .append(player.displayName())
+                    .append(Component.text(" 的传送请求").color(NamedTextColor.GREEN))
+                    .append(Component.newline())
+                    .append(Component.text("[点击同意]")
+                            .color(NamedTextColor.AQUA).decorate(TextDecoration.UNDERLINED)
+                            .hoverEvent(HoverEvent.showText(Component.text("点击执行: %s".formatted(acceptCmd))))
+                            .clickEvent(ClickEvent.runCommand(acceptCmd))
+                    )
+                    .appendSpace()
+                    .append(Component.text("[点击拒绝]")
+                            .color(NamedTextColor.RED).decorate(TextDecoration.UNDERLINED)
+                            .hoverEvent(HoverEvent.showText(Component.text("点击执行: %s".formatted(rejectCmd))))
+                            .clickEvent(ClickEvent.runCommand(rejectCmd))
+                    )
+                    .build();
+
+            plugin.sendInfo(targetPlayer, build1);
+        });
 
         return true;
     }
