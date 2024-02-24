@@ -6,9 +6,11 @@ import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskSchedule
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
+import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,6 +29,8 @@ public final class PaperCardTpa extends JavaPlugin {
 
     private final @NotNull UseCoins useCoins;
 
+    private final @NotNull UseEnderPeal useEnderPeal;
+
     private PlayerCoinsApi playerCoinsApi = null;
 
     public PaperCardTpa() {
@@ -37,6 +41,7 @@ public final class PaperCardTpa extends JavaPlugin {
         this.taskScheduler = UniversalScheduler.getScheduler(this);
 
         this.useCoins = new UseCoins(this);
+        this.useEnderPeal = new UseEnderPeal(this);
     }
 
     void appendPrefix(@NotNull TextComponent.Builder text) {
@@ -125,13 +130,17 @@ public final class PaperCardTpa extends JavaPlugin {
         tpaCancelCmd.setExecutor(tpaCancelCommand);
         tpaCancelCmd.setTabCompleter(tpaCancelCommand);
 
+        new MainCommand(this);
+
         this.configManager.setDefaults();
         this.configManager.save();
     }
 
     @Override
     public void onDisable() {
+        this.taskScheduler.cancelTasks(this);
         this.configManager.save();
+        this.playerCoinsApi = null;
     }
 
     @NotNull PlayerCoinsApi getPlayerCoinsApi() {
@@ -150,6 +159,20 @@ public final class PaperCardTpa extends JavaPlugin {
         return this.useCoins;
     }
 
+    @NotNull UseEnderPeal getUseEnderPeal() {
+        return this.useEnderPeal;
+    }
+
+    @NotNull Permission addPermission(@NotNull String name) {
+        final Permission p = new Permission(name);
+        this.getServer().getPluginManager().addPermission(p);
+        return p;
+    }
+
+    @NotNull TextComponent coinsNumber(long c) {
+        return Component.text(c).color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD);
+    }
+
     void sendInfo(@NotNull CommandSender sender, @NotNull TextComponent message) {
         final TextComponent.Builder text = Component.text();
         this.appendPrefix(text);
@@ -157,6 +180,16 @@ public final class PaperCardTpa extends JavaPlugin {
         sender.sendMessage(text
                 .appendSpace()
                 .append(message)
+                .build());
+    }
+
+    void sendInfo(@NotNull CommandSender sender, @NotNull String info) {
+        final TextComponent.Builder text = Component.text();
+        this.appendPrefix(text);
+
+        sender.sendMessage(text
+                .appendSpace()
+                .append(Component.text(info).color(NamedTextColor.GREEN))
                 .build());
     }
 

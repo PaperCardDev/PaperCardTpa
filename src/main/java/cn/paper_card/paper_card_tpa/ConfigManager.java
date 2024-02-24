@@ -8,6 +8,8 @@ class ConfigManager {
 
     private final static String PATH_NEED_COINS = "need-coins";
 
+    private final static String PATH_NEED_ENDER_PEALS = "need-ender-peals";
+
     private final static String PATH_COOL_DOWN = "cool-down";
 
     ConfigManager(@NotNull PaperCardTpa plugin) {
@@ -31,13 +33,26 @@ class ConfigManager {
         this.plugin.getConfig().set(PATH_NEED_COINS, v);
     }
 
+    int getNeedEnderPeals() {
+        return this.plugin.getConfig().getInt(PATH_NEED_ENDER_PEALS, 4);
+    }
+
+    void setNeedEnderPeals(int v) {
+        this.plugin.getConfig().set(PATH_NEED_ENDER_PEALS, v);
+    }
+
     void setDefaults() {
         this.setCoolDown(this.getCoolDown());
         this.setNeedCoins(this.getNeedCoins());
+        this.setNeedEnderPeals(this.getNeedEnderPeals());
     }
 
     void save() {
         this.plugin.saveConfig();
+    }
+
+    void reload() {
+        this.plugin.reloadConfig();
     }
 
 }

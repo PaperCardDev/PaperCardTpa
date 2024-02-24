@@ -10,6 +10,10 @@ depend:
   - PlayerCoins
 
 commands:
+  paper-card-tpa:
+    permission: paper-card-tpa.command
+    description: PaperCardTpa主命令
+
   tpa:
     permission: paper-card-tpa.command.tpa
     description: 向一个玩家传送请求
@@ -27,17 +31,20 @@ commands:
     description: 取消传送请求
 
 permissions:
+  paper-card-tpa.command:
+    default: op
+
   paper-card-tpa.command.tpa:
-    default: true
+    default: op
 
   paper-card-tpa.command.tpa-accept:
-    default: true
+    default: op
 
   paper-card-tpa.command.tpa-deny:
-    default: true
+    default: op
 
   paper-card-tpa.command.tpa-cancel:
-    default: true
+    default: op
 
 
 

@@ -1,9 +1,12 @@
 package cn.paper_card.paper_card_tpa;
 
+import cn.paper_card.player_coins.api.NotEnoughCoinsException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.TitlePart;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -85,19 +88,51 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        plugin.getTaskScheduler().runTaskAsynchronously(() -> {
+        // 消耗末影珍珠或硬币
+        final int needEnderPearls = request.needEnderPearls();
+        final long needCoins = request.needCoins();
 
-            // 消耗硬币
+        final TextComponent.Builder text = Component.text();
+        plugin.appendPrefix(text);
+        text.appendSpace();
+
+        text.append(Component.text("已花费"));
+        if (needEnderPearls > 0) {
+            if (plugin.getUseEnderPeal().consume(request.srcPlayer(), needEnderPearls)) {
+                text.append(plugin.coinsNumber(needEnderPearls));
+                text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
+            } else {
+                plugin.sendWaring(commandSender, "对方没有足够的足够的末影珍珠来传送！");
+                plugin.sendWaring(request.srcPlayer(), "请将%d末影珍珠放在主手！".formatted(needEnderPearls));
+                return true;
+            }
+        }
+
+        if (needCoins > 0) {
             try {
-                if (!plugin.getUseCoins().consumeCoins(srcPlayer, destPlayer)) return;
+                plugin.getUseCoins().consume(request.srcPlayer(), needCoins, destPlayer.getName());
+            } catch (NotEnoughCoinsException e) {
+                plugin.sendWaring(commandSender, "对方没有足够的%s来进行传送！".formatted(
+                        plugin.getPlayerCoinsApi().getCoinsName()
+                ));
+                return true;
             } catch (Exception e) {
-                plugin.sendException(srcPlayer, e);
                 plugin.getSLF4JLogger().error("", e);
-                return;
+                plugin.sendException(commandSender, e);
+                return true;
             }
 
-            final Consumer<ScheduledTask> task = getScheduledTaskConsumer(destPlayer, srcPlayer);
+            text.append(plugin.coinsNumber(needCoins));
+            text.append(Component.text(plugin.getPlayerCoinsApi().getCoinsName()));
+        }
+        text.append(Component.text("来进行传送"));
 
+        commandSender.sendMessage(text.build().color(NamedTextColor.GREEN));
+
+        plugin.getTaskScheduler().runTaskAsynchronously(() -> {
+
+
+            final Consumer<ScheduledTask> task = getScheduledTaskConsumer(destPlayer, srcPlayer);
 
             srcPlayer.getScheduler().runAtFixedRate(plugin, task, null, 20, 20);
 

@@ -6,6 +6,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -60,7 +61,7 @@ class TpaCommand implements CommandExecutor, TabCompleter {
         final long playerTpCd = plugin.getPlayerTpCd(player);
         if (playerTpCd > 0) {
             plugin.sendInfo(commandSender, Component.text()
-                    .append(Component.text("传送冷却，你在").color(NamedTextColor.YELLOW))
+                    .append(Component.text("传送冷却，在").color(NamedTextColor.YELLOW))
                     .append(Component.text(PaperCardTpa.formatTime(playerTpCd)).color(NamedTextColor.RED))
                     .append(Component.text("后才能再次传送噢").color(NamedTextColor.YELLOW))
                     .build()
@@ -69,30 +70,20 @@ class TpaCommand implements CommandExecutor, TabCompleter {
         }
 
         plugin.getTaskScheduler().runTaskAsynchronously(() -> {
-
-            // 检查硬币是否足够
-            try {
-                if (!plugin.getUseCoins().checkCoins(player)) return;
-            } catch (Exception e) {
-                plugin.getSLF4JLogger().error("", e);
-                plugin.sendException(commandSender, e);
-                return;
-            }
-
             // 检查是否重复请求
-            final TpRequest request = plugin.getRequestContainer().removeBySrcPlayer(player);
-            if (request != null) {
+            final TpRequest reqOld = plugin.getRequestContainer().removeBySrcPlayer(player);
+            if (reqOld != null) {
                 final long currentTimeMillis = System.currentTimeMillis();
 
                 // 请求已经过期
-                if (currentTimeMillis > request.createTime() + 2 * 60 * 1000L) {
+                if (currentTimeMillis > reqOld.createTime() + 2 * 60 * 1000L) {
                     plugin.getLogger().info("已自动取消超时的传送请求");
                 } else {
-                    final Player destPlayer = request.destPlayer();
+                    final Player destPlayer = reqOld.destPlayer();
                     plugin.sendInfo(commandSender, Component.text()
-                            .append(Component.text("你已经向 ").color(NamedTextColor.YELLOW))
+                            .append(Component.text("您已向 ").color(NamedTextColor.YELLOW))
                             .append(destPlayer.displayName())
-                            .append(Component.text(" 发起了一个传送请求，不能再发起新的传送请求，请先取消原请求再重新发起噢").color(NamedTextColor.YELLOW))
+                            .append(Component.text(" 发起了传送请求，不能再发起新的传送请求，请先取消原请求再重新发起噢").color(NamedTextColor.YELLOW))
                             .appendSpace()
                             .append(Component.text("[点击取消]")
                                     .color(NamedTextColor.GRAY).decorate(TextDecoration.UNDERLINED)
@@ -101,17 +92,98 @@ class TpaCommand implements CommandExecutor, TabCompleter {
                             )
                             .build());
 
-                    plugin.getRequestContainer().add(request); // 放回
+                    plugin.getRequestContainer().add(reqOld); // 放回
                     return;
                 }
             }
 
-            // 创建传送请求
-            final boolean added = plugin.getRequestContainer().add(new TpRequest(player, targetPlayer, System.currentTimeMillis()));
+            // 检查末影珍珠
+            final int needEnderPeals = this.plugin.getConfigManager().getNeedEnderPeals();
+
+            final TpRequest reqNew;
+
+            if (this.plugin.getUseEnderPeal().checkEnderPearl(player, needEnderPeals)) {
+                reqNew = new TpRequest(
+                        player,
+                        targetPlayer,
+                        System.currentTimeMillis(),
+                        0,
+                        needEnderPeals
+                );
+            } else {
+                // 没有末影珍珠，使用硬币
+                final long needCoins = this.plugin.getConfigManager().getNeedCoins();
+
+                final boolean ok;
+
+                try {
+                    ok = this.plugin.getUseCoins().checkCoins(player, needCoins);
+                } catch (Exception e) {
+                    plugin.getSLF4JLogger().error("", e);
+                    plugin.sendException(commandSender, e);
+                    return;
+                }
+
+                if (ok) {
+                    reqNew = new TpRequest(
+                            player,
+                            targetPlayer,
+                            System.currentTimeMillis(),
+                            needCoins,
+                            0
+                    );
+
+                } else {
+                    final TextComponent.Builder text = Component.text();
+                    plugin.appendPrefix(text);
+                    text.appendSpace();
+                    text.append(Component.text("没有足够的"));
+                    text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
+                    text.append(Component.text("（需要%d）".formatted(needEnderPeals)));
+                    text.append(Component.text("或"));
+                    text.append(Component.text(plugin.getPlayerCoinsApi().getCoinsName()));
+                    text.append(Component.text("（需要%d）".formatted(needCoins)));
+                    text.append(Component.text("来发起传送请求，请将"));
+                    text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
+                    text.append(Component.text("放在主手上"));
+                    commandSender.sendMessage(text.build().color(NamedTextColor.YELLOW));
+                    return;
+                }
+            }
+
+
+            // 添加传送请求
+            final boolean added = plugin.getRequestContainer().add(reqNew);
 
             if (!added) {
                 plugin.sendError(commandSender, "当前传送系统繁忙，请稍后重试");
                 return;
+            }
+
+            // 告知代价
+            {
+                final TextComponent.Builder text = Component.text();
+                plugin.appendPrefix(text);
+                text.append(Component.text(" 此次传送将花费"));
+
+                if (reqNew.needEnderPearls() > 0) {
+                    text.append(plugin.coinsNumber(reqNew.needEnderPearls()));
+                    text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
+                }
+
+                if (reqNew.needCoins() > 0) {
+                    text.append(plugin.coinsNumber(reqNew.needCoins()));
+                    text.append(Component.text(plugin.getPlayerCoinsApi().getCoinsName()));
+                }
+
+                if (reqNew.needCoins() > 0 && reqNew.needEnderPearls() <= 0) {
+                    text.append(Component.text("，如需使用"));
+                    text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
+                    text.append(Component.text("，请将其放在主手"));
+                }
+
+
+                commandSender.sendMessage(text.build().color(NamedTextColor.GREEN));
             }
 
             //
