@@ -58,13 +58,14 @@ class UseCoins {
         return true;
     }
 
-    boolean consumeCoins(@NotNull Player player) throws Exception {
+    boolean consumeCoins(@NotNull Player player, @NotNull Player target) throws Exception {
         final PlayerCoinsApi api = plugin.getPlayerCoinsApi();
 
         final long needCoins = plugin.getConfigManager().getNeedCoins();
 
+        final long coins;
         try {
-            api.consumeCoins(player.getUniqueId(), needCoins);
+            coins = api.consumeCoins(player.getUniqueId(), needCoins, "TPA传送到%s".formatted(target.getName()));
         } catch (NotEnoughCoinsException e) {
             this.sendNotEnough(player, needCoins, e.getLeftCoins());
             return false;
@@ -73,11 +74,13 @@ class UseCoins {
         final TextComponent.Builder text = Component.text();
         plugin.appendPrefix(text);
         text.appendSpace();
-        text.append(Component.text("已消耗").color(NamedTextColor.GREEN));
+        text.append(Component.text("已消耗"));
         text.append(Component.text(needCoins).color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD));
-        text.append(Component.text("枚硬币来进行传送~").color(NamedTextColor.GREEN));
+        text.append(Component.text("枚硬币来进行传送，你还有"));
+        text.append(Component.text(coins).color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD));
+        text.append(Component.text("枚硬币~"));
 
-        player.sendMessage(text.build());
+        player.sendMessage(text.build().color(NamedTextColor.GREEN));
 
         return true;
     }

@@ -89,7 +89,7 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
 
             // 消耗硬币
             try {
-                if (!plugin.getUseCoins().consumeCoins(srcPlayer)) return;
+                if (!plugin.getUseCoins().consumeCoins(srcPlayer, destPlayer)) return;
             } catch (Exception e) {
                 plugin.sendException(srcPlayer, e);
                 plugin.getSLF4JLogger().error("", e);
