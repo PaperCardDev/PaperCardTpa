@@ -127,10 +127,9 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
         }
         text.append(Component.text("来进行传送"));
 
-        commandSender.sendMessage(text.build().color(NamedTextColor.GREEN));
+        srcPlayer.sendMessage(text.build().color(NamedTextColor.GREEN));
 
         plugin.getTaskScheduler().runTaskAsynchronously(() -> {
-
 
             final Consumer<ScheduledTask> task = getScheduledTaskConsumer(destPlayer, srcPlayer);
 
