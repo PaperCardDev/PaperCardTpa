@@ -31,23 +31,23 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
-        if (!(commandSender instanceof final Player destPlayer)) {
+        if (!(commandSender instanceof final Player receiver)) {
             plugin.sendError(commandSender, "该命令只能由玩家来执行！");
             return true;
         }
 
         final String argSrcPlayer = strings.length > 0 ? strings[0] : null;
 
-        final Player srcPlayer;
+        final Player sender;
 
         if (argSrcPlayer == null) {
             plugin.sendError(commandSender, "你必须指定要同意哪个玩家的传送请求噢~");
             return true;
         }
 
-        srcPlayer = plugin.getOnlinePlayerByName(argSrcPlayer);
+        sender = plugin.getOnlinePlayerByName(argSrcPlayer);
 
-        if (srcPlayer == null) {
+        if (sender == null) {
             plugin.sendInfo(commandSender, Component.text()
                     .append(Component.text("该玩家 ").color(NamedTextColor.YELLOW))
                     .append(Component.text(argSrcPlayer).color(NamedTextColor.RED))
@@ -57,34 +57,35 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
         }
 
         // 查询传送请求
-        final TpRequest request = plugin.getRequestContainer().remove(srcPlayer, destPlayer);
+        final TpRequest request = plugin.getRequestContainer().remove(sender, receiver);
 
         if (request == null) {
             plugin.sendInfo(commandSender, Component.text()
-                    .append(srcPlayer.displayName())
+                    .append(sender.displayName())
                     .append(Component.text(" 没有给你发送传送请求").color(NamedTextColor.YELLOW))
                     .build());
             return true;
         }
 
         // 检查传送冷却
-        final long playerTpCd = plugin.getPlayerTpCd(srcPlayer);
+        final long playerTpCd = plugin.getPlayerTpCd(request.tpToReceiver() ? sender : receiver);
         if (playerTpCd > 0) {
             final String s1 = PaperCardTpa.formatTime(playerTpCd);
-            plugin.sendInfo(srcPlayer, Component.text()
-                    .append(destPlayer.displayName())
-                    .append(Component.text(" 已同意你的传送请求，但你传送冷却，").color(NamedTextColor.YELLOW))
+
+            plugin.sendInfo(sender, Component.text()
+                    .append(receiver.displayName())
+                    .append(Component.text(" 已同意你的传送请求，但由于传送冷却，").color(NamedTextColor.YELLOW))
                     .append(Component.text(s1).color(NamedTextColor.RED))
                     .append(Component.text("后才能再次传送").color(NamedTextColor.YELLOW))
                     .build());
 
-
-            plugin.sendInfo(destPlayer, Component.text()
-                    .append(srcPlayer.displayName())
+            plugin.sendInfo(receiver, Component.text()
+                    .append(sender.displayName())
                     .append(Component.text(" 处于传送冷却状态，").color(NamedTextColor.YELLOW))
                     .append(Component.text(s1).color(NamedTextColor.RED))
                     .append(Component.text("后才能再次传送").color(NamedTextColor.YELLOW))
                     .build());
+
             return true;
         }
 
@@ -97,58 +98,63 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
         text.appendSpace();
 
         text.append(Component.text("已花费"));
+
         if (needEnderPearls > 0) {
-            if (plugin.getUseEnderPeal().consume(request.srcPlayer(), needEnderPearls)) {
+            if (plugin.getUseEnderPeal().consume(sender, needEnderPearls)) {
                 text.append(plugin.coinsNumber(needEnderPearls));
                 text.append(Component.translatable(Material.ENDER_PEARL.translationKey()));
             } else {
-                plugin.sendWaring(commandSender, "对方没有足够的足够的末影珍珠来传送！");
-                plugin.sendWaring(request.srcPlayer(), "请将%d末影珍珠放在主手！".formatted(needEnderPearls));
+                plugin.sendWaring(sender, "请将%d末影珍珠放在主手！".formatted(needEnderPearls));
                 return true;
             }
         }
 
-        if (needCoins > 0) {
-            try {
-                plugin.getUseCoins().consume(request.srcPlayer(), needCoins, destPlayer.getName());
-            } catch (NotEnoughCoinsException e) {
-                plugin.sendWaring(commandSender, "对方没有足够的%s来进行传送！".formatted(
-                        plugin.getPlayerCoinsApi().getCoinsName()
-                ));
-                return true;
-            } catch (Exception e) {
-                plugin.getSLF4JLogger().error("", e);
-                plugin.sendException(commandSender, e);
-                return true;
-            }
-
-            text.append(plugin.coinsNumber(needCoins));
-            text.append(Component.text(plugin.getPlayerCoinsApi().getCoinsName()));
-        }
-        text.append(Component.text("来进行传送"));
-
-        srcPlayer.sendMessage(text.build().color(NamedTextColor.GREEN));
 
         plugin.getTaskScheduler().runTaskAsynchronously(() -> {
 
-            final Consumer<ScheduledTask> task = getScheduledTaskConsumer(destPlayer, srcPlayer);
+            if (needCoins > 0) {
+                try {
+                    plugin.getUseCoins().consume(sender, needCoins, receiver.getName());
+                } catch (NotEnoughCoinsException e) {
+                    plugin.sendWaring(commandSender, "没有足够的%s来进行传送！".formatted(
+                            plugin.getPlayerCoinsApi().getCoinsName()
+                    ));
+                    return;
+                } catch (Exception e) {
+                    plugin.getSLF4JLogger().error("", e);
+                    plugin.sendException(commandSender, e);
+                    return;
+                }
 
-            srcPlayer.getScheduler().runAtFixedRate(plugin, task, null, 20, 20);
+                text.append(plugin.coinsNumber(needCoins));
+                text.append(Component.text(plugin.getPlayerCoinsApi().getCoinsName()));
+            }
+            text.append(Component.text("来进行传送"));
+
+            sender.sendMessage(text.build().color(NamedTextColor.GREEN));
+
+            final Consumer<ScheduledTask> task = getScheduledTaskConsumer(
+                    request.tpToReceiver() ? sender : receiver
+                    ,
+                    request.tpToReceiver() ? receiver : sender
+            );
+
+            sender.getScheduler().runAtFixedRate(plugin, task, null, 20, 20);
 
             // 通知
-            srcPlayer.sendActionBar(Component.text()
-                    .append(destPlayer.displayName())
+            sender.sendActionBar(Component.text()
+                    .append(receiver.displayName())
                     .appendSpace()
                     .append(Component.text("已同意你的传送请求，即将传送...")).color(NamedTextColor.GREEN)
                     .build());
 
             // 让被玩家不要动
-            srcPlayer.sendTitlePart(TitlePart.TITLE, Component.text("准备传送").color(NamedTextColor.GOLD));
-            srcPlayer.sendTitlePart(TitlePart.SUBTITLE, Component.text("不要动！").color(NamedTextColor.RED));
+            sender.sendTitlePart(TitlePart.TITLE, Component.text("准备传送").color(NamedTextColor.GOLD));
+            sender.sendTitlePart(TitlePart.SUBTITLE, Component.text("不要动！").color(NamedTextColor.RED));
 
-            destPlayer.sendActionBar(Component.text()
+            receiver.sendActionBar(Component.text()
                     .append(Component.text("准备将 ").color(NamedTextColor.GREEN))
-                    .append(srcPlayer.displayName())
+                    .append(sender.displayName())
                     .append(Component.text(" 传送到你这儿~").color(NamedTextColor.GREEN))
                     .build());
         });
@@ -157,22 +163,22 @@ class TpaAcceptCommand implements CommandExecutor, TabCompleter {
     }
 
     @NotNull
-    private Consumer<ScheduledTask> getScheduledTaskConsumer(Player destPlayer, Player srcPlayer) {
+    private Consumer<ScheduledTask> getScheduledTaskConsumer(@NotNull Player target, @NotNull Player dest) {
         final AtomicInteger integer = new AtomicInteger(60);
 
         return (t) -> {
             final int i = integer.get();
             if (i <= 0) {
                 // 真正的传送
-                srcPlayer.teleportAsync(destPlayer.getLocation());
-                plugin.setPlayerLastTp(srcPlayer, System.currentTimeMillis());
-                plugin.sendInfo(srcPlayer, Component.text("已传送").color(NamedTextColor.GREEN));
-                plugin.sendInfo(destPlayer, Component.text("已传送").color(NamedTextColor.GREEN));
+                target.teleportAsync(dest.getLocation());
+                plugin.setPlayerLastTp(target, System.currentTimeMillis());
+                plugin.sendInfo(target, Component.text("已传送").color(NamedTextColor.GREEN));
+                plugin.sendInfo(dest, Component.text("已传送").color(NamedTextColor.GREEN));
                 t.cancel();
                 return;
             }
             integer.set(i - 20);
-            plugin.sendInfo(srcPlayer, Component.text()
+            plugin.sendInfo(target, Component.text()
                     .append(Component.text(i / 20).color(NamedTextColor.GOLD))
                     .append(Component.text("秒后传送...").color(NamedTextColor.GREEN))
                     .build());

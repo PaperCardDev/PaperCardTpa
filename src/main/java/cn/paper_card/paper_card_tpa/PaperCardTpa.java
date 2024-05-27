@@ -112,6 +112,12 @@ public final class PaperCardTpa extends JavaPlugin {
         tpaCmd.setExecutor(tpaCommand);
         tpaCmd.setTabCompleter(tpaCommand);
 
+        final PluginCommand tpaHereCmd = this.getCommand("tpahere");
+        final TpaHereCommand tpaHereCommand = new TpaHereCommand(this);
+        assert tpaHereCmd != null;
+        tpaHereCmd.setExecutor(tpaHereCommand);
+        tpaHereCmd.setTabCompleter(tpaHereCommand);
+
         final PluginCommand tpaAcceptCmd = this.getCommand("tpaaccept");
         final TpaAcceptCommand tpaAcceptCommand = new TpaAcceptCommand(this);
         assert tpaAcceptCmd != null;
@@ -129,6 +135,7 @@ public final class PaperCardTpa extends JavaPlugin {
         assert tpaCancelCmd != null;
         tpaCancelCmd.setExecutor(tpaCancelCommand);
         tpaCancelCmd.setTabCompleter(tpaCancelCommand);
+
 
         new MainCommand(this);
 

@@ -2,7 +2,6 @@ package cn.paper_card.paper_card_tpa;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -14,26 +13,27 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedList;
 import java.util.List;
 
-class TpaCommand implements CommandExecutor, TabCompleter {
+class TpaHereCommand implements CommandExecutor, TabCompleter {
 
     private final @NotNull PaperCardTpa plugin;
 
-
-    TpaCommand(@NotNull PaperCardTpa plugin) {
+    TpaHereCommand(@NotNull PaperCardTpa plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
+
         if (!(commandSender instanceof final Player sender)) {
             plugin.sendError(commandSender, "该命令只能由玩家来执行！");
             return true;
         }
 
+        // 要传送谁
         final String argTargetPlayer = strings.length > 0 ? strings[0] : null;
 
         if (argTargetPlayer == null) {
-            plugin.sendWaring(commandSender, "你必须指定要传送到谁那里噢，小笨蛋");
+            plugin.sendWaring(commandSender, "你必须指定邀请谁传送到你这里噢，小笨蛋");
             return true;
         }
 
@@ -53,25 +53,20 @@ class TpaCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 旁观者
-        if (sender.getGameMode() == GameMode.SPECTATOR) {
-            sender.teleportAsync(receiver.getLocation());
-            return true;
-        }
-
         // 检查传送冷却
-        final long playerTpCd = plugin.getPlayerTpCd(sender);
+        final long playerTpCd = plugin.getPlayerTpCd(receiver);
         if (playerTpCd > 0) {
             plugin.sendInfo(commandSender, Component.text()
-                    .append(Component.text("传送冷却，你在").color(NamedTextColor.YELLOW))
+                    .append(Component.text("对方传送冷却，在").color(NamedTextColor.YELLOW))
                     .append(Component.text(PaperCardTpa.formatTime(playerTpCd)).color(NamedTextColor.RED))
-                    .append(Component.text("后才能再次传送噢").color(NamedTextColor.YELLOW))
+                    .append(Component.text("后才能再次传送").color(NamedTextColor.YELLOW))
                     .build()
             );
             return true;
         }
 
         plugin.getTaskScheduler().runTaskAsynchronously(() -> {
+
             // 检查是否重复请求
             final TpRequest reqOld = plugin.getRequestContainer().removeBySender(sender);
 
@@ -89,7 +84,7 @@ class TpaCommand implements CommandExecutor, TabCompleter {
             }
 
             // 检查代价
-            final TpRequest reqNew = Util.checkCost(plugin, sender, receiver, true);
+            final TpRequest reqNew = Util.checkCost(plugin, sender, receiver, false);
 
             if (reqNew == null) return;
 

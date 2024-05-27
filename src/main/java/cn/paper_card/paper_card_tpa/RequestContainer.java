@@ -27,14 +27,15 @@ class RequestContainer {
         return false;
     }
 
-    @Nullable TpRequest removeBySrcPlayer(@NotNull Player srcPlayer) {
+    // 移除自己发起的传送请求
+    @Nullable TpRequest removeBySender(@NotNull Player sender) {
         synchronized (this) {
             for (int i = 0; i < this.requests.length; ++i) {
-                final TpRequest request = requests[i];
+                final TpRequest request = this.requests[i];
 
                 if (request == null) continue;
 
-                if (request.srcPlayer().getUniqueId().equals(srcPlayer.getUniqueId())) {
+                if (request.sender().getUniqueId().equals(sender.getUniqueId())) {
                     this.requests[i] = null;
                     return request;
                 }
@@ -44,18 +45,20 @@ class RequestContainer {
     }
 
 
-    @Nullable TpRequest remove(@NotNull Player srcPlayer, @NotNull Player destPlayer) {
+    @Nullable TpRequest remove(@NotNull Player sender, @NotNull Player receiver) {
         synchronized (this) {
             for (int i = 0; i < this.requests.length; ++i) {
                 if (this.requests[i] == null) continue;
 
                 final TpRequest request = this.requests[i];
-                if (request.srcPlayer().getUniqueId().equals(srcPlayer.getUniqueId())) {
-                    if (request.destPlayer().getUniqueId().equals(destPlayer.getUniqueId())) {
+
+                if (request.sender().getUniqueId().equals(sender.getUniqueId())) {
+                    if (request.receiver().getUniqueId().equals(receiver.getUniqueId())) {
                         this.requests[i] = null;
                         return request;
                     }
                 }
+
             }
         }
         return null;

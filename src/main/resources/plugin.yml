@@ -30,6 +30,10 @@ commands:
     permission: paper-card-tpa.command.tpa-cancel
     description: 取消传送请求
 
+  tpahere:
+    permission: paper-card-tpa.command.tpa-here
+    description: 邀请玩家传送到自己这里
+
 permissions:
   paper-card-tpa.command:
     default: op
@@ -46,5 +50,5 @@ permissions:
   paper-card-tpa.command.tpa-cancel:
     default: op
 
-
-
+  paper-card-tpa.command.tpa-here:
+    default: op

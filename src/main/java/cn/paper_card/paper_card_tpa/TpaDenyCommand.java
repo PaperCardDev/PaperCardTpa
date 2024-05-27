@@ -22,7 +22,7 @@ class TpaDenyCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
-        if (!(commandSender instanceof final Player destPlayer)) {
+        if (!(commandSender instanceof final Player receiver)) {
             plugin.sendError(commandSender, "该命令只能由玩家来执行！");
             return true;
         }
@@ -34,9 +34,9 @@ class TpaDenyCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        final Player srcPlayer = plugin.getOnlinePlayerByName(argSrcPlayer);
+        final Player sender = plugin.getOnlinePlayerByName(argSrcPlayer);
 
-        if (srcPlayer == null) {
+        if (sender == null) {
             plugin.sendInfo(commandSender, Component.text()
                     .append(Component.text("找不到该在线玩家: ").color(NamedTextColor.YELLOW))
                     .append(Component.text(argSrcPlayer).color(NamedTextColor.RED))
@@ -44,11 +44,11 @@ class TpaDenyCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        final TpRequest request = plugin.getRequestContainer().remove(srcPlayer, destPlayer);
+        final TpRequest request = plugin.getRequestContainer().remove(sender, receiver);
 
         if (request == null) {
             plugin.sendInfo(commandSender, Component.text()
-                    .append(srcPlayer.displayName())
+                    .append(sender.displayName())
                     .append(Component.text(" 没有向你发起传送请求噢").color(NamedTextColor.YELLOW))
                     .build());
 
@@ -57,13 +57,13 @@ class TpaDenyCommand implements CommandExecutor, TabCompleter {
 
         plugin.sendInfo(commandSender, Component.text()
                 .append(Component.text("你已拒绝 ").color(NamedTextColor.GREEN))
-                .append(srcPlayer.displayName())
+                .append(sender.displayName())
                 .append(Component.text(" 的传送请求").color(NamedTextColor.GREEN))
                 .build());
 
         // 通知对方
-        plugin.sendInfo(srcPlayer, Component.text()
-                .append(destPlayer.displayName())
+        plugin.sendInfo(sender, Component.text()
+                .append(receiver.displayName())
                 .append(Component.text(" 已拒绝你的传送请求 :(").color(NamedTextColor.RED))
                 .append(Component.text())
                 .build());

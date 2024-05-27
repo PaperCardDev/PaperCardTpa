@@ -8,9 +8,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 class UseEnderPeal {
-
     private final @NotNull PaperCardTpa plugin;
 
     UseEnderPeal(@NotNull PaperCardTpa plugin) {
@@ -18,14 +18,15 @@ class UseEnderPeal {
     }
 
     // 检查玩家的手里是否有足够的末影珍珠来进行传送，有返回true
-    boolean checkEnderPearl(@NotNull Player player, int need) {
+    // 如果手上物品不是末影珍珠，返回null
+    @Nullable Boolean checkEnderPearl(@NotNull Player player, int need) {
         final PlayerInventory inventory = player.getInventory();
 
         final ItemStack item = inventory.getItemInMainHand();
 
         final Material type = item.getType();
         if (type != Material.ENDER_PEARL) {
-            return false;
+            return null;
         }
 
         if (item.getAmount() >= need) {

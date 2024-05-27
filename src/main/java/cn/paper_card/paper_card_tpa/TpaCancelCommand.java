@@ -24,28 +24,36 @@ class TpaCancelCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
 
-        if (!(commandSender instanceof final Player srcPlayer)) {
+        if (!(commandSender instanceof final Player sender)) {
             plugin.sendError(commandSender, "该命令只能由玩家来执行！");
             return true;
         }
 
-        final TpRequest request = plugin.getRequestContainer().removeBySrcPlayer(srcPlayer);
+        final TpRequest request = plugin.getRequestContainer().removeBySender(sender);
 
         if (request == null) {
             plugin.sendWaring(commandSender, "你没有发起任何传送请求噢");
             return true;
         }
 
-        final Player destPlayer = request.destPlayer();
+        final Player receiver = request.receiver();
 
-        plugin.sendInfo(srcPlayer, Component.text()
-                .append(Component.text("已取消传送到 ").color(NamedTextColor.GREEN))
-                .append(destPlayer.displayName())
-                .append(Component.text(" 的请求").color(NamedTextColor.GREEN))
-                .build());
+        if (request.tpToReceiver()) {
+            plugin.sendInfo(sender, Component.text()
+                    .append(Component.text("已取消传送到 ").color(NamedTextColor.GREEN))
+                    .append(receiver.displayName())
+                    .append(Component.text(" 的请求").color(NamedTextColor.GREEN))
+                    .build());
+        } else {
+            plugin.sendInfo(sender, Component.text()
+                    .append(Component.text("已取消邀请 ").color(NamedTextColor.GREEN))
+                    .append(receiver.displayName())
+                    .append(Component.text(" 传送到这儿的请求").color(NamedTextColor.GREEN))
+                    .build());
+        }
 
-        plugin.sendInfo(destPlayer, Component.text()
-                .append(srcPlayer.displayName())
+        plugin.sendInfo(receiver, Component.text()
+                .append(sender.displayName())
                 .append(Component.text(" 已取消传送请求").color(NamedTextColor.YELLOW))
                 .build());
 
