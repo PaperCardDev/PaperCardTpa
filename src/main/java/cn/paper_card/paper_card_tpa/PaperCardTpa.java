@@ -31,7 +31,7 @@ public final class PaperCardTpa extends JavaPlugin {
 
     private final @NotNull UseEnderPeal useEnderPeal;
 
-    private PlayerCoinsApi playerCoinsApi = null;
+    private @Nullable PlayerCoinsApi playerCoinsApi = null;
 
     public PaperCardTpa() {
         this.lastTp = new HashMap<>();
@@ -139,7 +139,8 @@ public final class PaperCardTpa extends JavaPlugin {
 
         new MainCommand(this);
 
-        this.configManager.setDefaults();
+        // 配置文件
+        this.configManager.getAll();
         this.configManager.save();
     }
 
@@ -151,7 +152,9 @@ public final class PaperCardTpa extends JavaPlugin {
     }
 
     @NotNull PlayerCoinsApi getPlayerCoinsApi() {
-        return this.playerCoinsApi;
+        final PlayerCoinsApi api = this.playerCoinsApi;
+        if (api == null) throw new RuntimeException("PlayerCoinsApi is null!");
+        return api;
     }
 
     @NotNull ConfigManager getConfigManager() {
@@ -190,13 +193,13 @@ public final class PaperCardTpa extends JavaPlugin {
                 .build());
     }
 
-    void sendInfo(@NotNull CommandSender sender, @NotNull String info) {
+    void sendInfo(@NotNull CommandSender sender) {
         final TextComponent.Builder text = Component.text();
         this.appendPrefix(text);
 
         sender.sendMessage(text
                 .appendSpace()
-                .append(Component.text(info).color(NamedTextColor.GREEN))
+                .append(Component.text("已重载配置").color(NamedTextColor.GREEN))
                 .build());
     }
 

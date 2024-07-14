@@ -1,16 +1,13 @@
 package cn.paper_card.paper_card_tpa;
 
+import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Collections;
 
 class ConfigManager {
 
     private final @NotNull PaperCardTpa plugin;
-
-    private final static String PATH_NEED_COINS = "need-coins";
-
-    private final static String PATH_NEED_ENDER_PEALS = "need-ender-peals";
-
-    private final static String PATH_COOL_DOWN = "cool-down";
 
     ConfigManager(@NotNull PaperCardTpa plugin) {
         this.plugin = plugin;
@@ -18,33 +15,53 @@ class ConfigManager {
 
 
     long getCoolDown() {
-        return this.plugin.getConfig().getLong(PATH_COOL_DOWN, 60 * 1000L);
-    }
 
-    void setCoolDown(long v) {
-        this.plugin.getConfig().set(PATH_COOL_DOWN, v);
+        final String path = "cool-down";
+        final long def = 60 * 1000;
+
+        final FileConfiguration c = this.plugin.getConfig();
+
+        if (!c.contains(path, true)) {
+            c.set(path, def);
+            c.setComments(path, Collections.singletonList("玩家传送冷却时间，以毫秒为单位，默认值：60x1000，一分钟"));
+        }
+
+        return c.getLong(path, def);
     }
 
     long getNeedCoins() {
-        return this.plugin.getConfig().getLong(PATH_NEED_COINS, 1);
-    }
+        final String path = "need-coins";
+        final long def = 1;
 
-    void setNeedCoins(long v) {
-        this.plugin.getConfig().set(PATH_NEED_COINS, v);
+        final FileConfiguration c = this.plugin.getConfig();
+
+        if (!c.contains(path, true)) {
+            c.set(path, def);
+            c.setComments(path, Collections.singletonList("玩家一次传送需要消耗的Coins（叫硬币或电池），默认值：1"));
+        }
+
+        return c.getLong(path, def);
     }
 
     int getNeedEnderPeals() {
-        return this.plugin.getConfig().getInt(PATH_NEED_ENDER_PEALS, 4);
+        final String path = "need-ender-peals";
+        final int def = 4;
+
+        final FileConfiguration c = this.plugin.getConfig();
+
+        if (!c.contains(path, true)) {
+            c.set(path, def);
+            c.setComments(path, Collections.singletonList("玩家一次传送需要消耗的末影珍珠，默认值：4"));
+        }
+
+        return c.getInt(path, def);
     }
 
-    void setNeedEnderPeals(int v) {
-        this.plugin.getConfig().set(PATH_NEED_ENDER_PEALS, v);
-    }
 
-    void setDefaults() {
-        this.setCoolDown(this.getCoolDown());
-        this.setNeedCoins(this.getNeedCoins());
-        this.setNeedEnderPeals(this.getNeedEnderPeals());
+    void getAll() {
+        this.getCoolDown();
+        this.getNeedCoins();
+        this.getNeedEnderPeals();
     }
 
     void save() {
@@ -54,5 +71,4 @@ class ConfigManager {
     void reload() {
         this.plugin.reloadConfig();
     }
-
 }

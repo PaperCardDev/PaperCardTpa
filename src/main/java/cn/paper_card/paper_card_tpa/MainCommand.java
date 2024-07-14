@@ -53,7 +53,7 @@ class MainCommand extends TheMcCommand.HasSub {
         public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
 
             plugin.getConfigManager().reload();
-            plugin.sendInfo(commandSender, "已重载配置");
+            plugin.sendInfo(commandSender);
             return true;
         }
 
