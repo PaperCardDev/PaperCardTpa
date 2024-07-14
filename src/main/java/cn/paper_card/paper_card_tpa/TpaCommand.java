@@ -59,6 +59,12 @@ class TpaCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        // 检查是否启用
+        if (!plugin.getConfigManager().isEnable()) {
+            plugin.sendWaring(commandSender, "服务器暂时禁用了TPA传送功能");
+            return true;
+        }
+
         // 检查传送冷却
         final long playerTpCd = plugin.getPlayerTpCd(sender);
         if (playerTpCd > 0) {

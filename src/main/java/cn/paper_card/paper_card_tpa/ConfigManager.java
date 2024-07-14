@@ -57,11 +57,25 @@ class ConfigManager {
         return c.getInt(path, def);
     }
 
+    boolean isEnable() {
+        final String path = "enable";
+        final boolean def = true;
+
+        final FileConfiguration c = this.plugin.getConfig();
+
+        if (!c.contains(path, true)) {
+            c.set(path, def);
+            c.setComments(path, Collections.singletonList("是否开启传送功能，默认值：true"));
+        }
+        return c.getBoolean(path, def);
+    }
+
 
     void getAll() {
         this.getCoolDown();
         this.getNeedCoins();
         this.getNeedEnderPeals();
+        this.isEnable();
     }
 
     void save() {
