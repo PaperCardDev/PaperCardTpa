@@ -3,6 +3,7 @@ package cn.paper_card.paper_card_tpa;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -13,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 class TpaCommand implements CommandExecutor, TabCompleter {
 
@@ -42,20 +44,67 @@ class TpaCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        final Player receiver = plugin.getOnlinePlayerByName(argTargetPlayer);
+        // @r
+        final Player receiver;
+        if ("@r".equals(argTargetPlayer)) {
+            final Player[] array = plugin.getServer().getOnlinePlayers().toArray(new Player[0]);
 
-        if (receiver == null) {
-            plugin.sendInfo(commandSender, Component.text()
-                    .append(Component.text("找不到该在线玩家：").color(NamedTextColor.YELLOW))
-                    .append(Component.text(argTargetPlayer).color(NamedTextColor.RED))
-                    .build()
-            );
-            return true;
+            if (array.length == 0) {
+                plugin.sendWaring(commandSender, "当前没有玩家在线");
+                return true;
+            }
+
+            final int index = new Random().nextInt(array.length);
+            receiver = array[index];
+        } else if ("@n".equals(argTargetPlayer)) {
+
+            final Player[] array = plugin.getServer().getOnlinePlayers().toArray(new Player[0]);
+
+            if (array.length == 0) {
+                plugin.sendWaring(commandSender, "当前没有玩家在线");
+                return true;
+            }
+
+            final Player near = getPlayer(sender, array);
+
+            if (near == null) {
+                plugin.sendWaring(commandSender, "找不到与你最近的玩家");
+                return true;
+            }
+            receiver = near;
+        } else {
+            receiver = plugin.getOnlinePlayerByName(argTargetPlayer);
+            if (receiver == null) {
+                plugin.sendInfo(commandSender, Component.text()
+                        .append(Component.text("找不到该在线玩家：").color(NamedTextColor.YELLOW))
+                        .append(Component.text(argTargetPlayer).color(NamedTextColor.RED))
+                        .build()
+                );
+                return true;
+            }
         }
+
 
         // 旁观者
         if (sender.getGameMode() == GameMode.SPECTATOR) {
-            sender.teleportAsync(receiver.getLocation());
+
+            sender.teleportAsync(receiver.getLocation())
+                    .thenAccept(aBoolean -> {
+                        if (aBoolean) {
+                            plugin.sendInfo(commandSender, Component.text()
+                                    .append(Component.text("已将你传送到 "))
+                                    .append(receiver.displayName())
+                                    .build().color(NamedTextColor.GREEN)
+                            );
+                        } else {
+                            plugin.sendError(commandSender, "传送失败！");
+                        }
+                    }).exceptionally(throwable -> {
+                        plugin.getSLF4JLogger().error("传送失败", throwable);
+                        plugin.sendError(commandSender, "传送失败！");
+                        return null;
+                    });
+
             return true;
         }
 
@@ -115,6 +164,35 @@ class TpaCommand implements CommandExecutor, TabCompleter {
         });
 
         return true;
+    }
+
+    @Nullable
+    private static Player getPlayer(Player sender, Player[] array) {
+        Player near = null;
+        int min = Integer.MAX_VALUE;
+
+
+        for (final Player p : array) {
+
+            // 忽略自己
+            if (p.getUniqueId().equals(sender.getUniqueId())) continue;
+
+            // 计算距离
+            final Location selfLoc = sender.getLocation();
+            final Location loc = p.getLocation();
+
+            // 不同世界
+            if (!loc.getWorld().getUID().equals(selfLoc.getWorld().getUID())) continue;
+
+            final int d = Math.abs(loc.getBlockX() - selfLoc.getBlockX()) +
+                    Math.abs(loc.getBlockZ() - selfLoc.getBlockZ());
+
+            if (d < min) {
+                min = d;
+                near = p;
+            }
+        }
+        return near;
     }
 
     @Override
